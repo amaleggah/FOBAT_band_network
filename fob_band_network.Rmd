@@ -1,0 +1,115 @@
+---
+title: "Fall Out Boy Band Network"
+output:
+  html_document:
+    css: doc.css
+date: "2026-04-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# title: Network analysis of Fall Out Boy members and their previous bands
+# inspired by Network analysis of The Marvel Cinematic universe by Felix Analytix : https://github.com/FelixAnalytix/YouTube/blob/main/20221108-interactive-network.R
+# and https://datastorm-open.github.io/visNetwork/ 
+
+library(data.table)
+library(tidyverse)
+library(tidygraph) # network analysis
+library(visNetwork) # interactive network visualization
+library(janitor)
+```
+
+```{r data, include=FALSE}
+df <- read.csv("/cloud/project/BIG LIST OF BAND LINEUPS - UM (1).csv")
+df <- pivot_longer(df,cols = everything(), values_drop_na = TRUE)
+df <- df %>% 
+  filter(value!="")
+# df <- sample_n(df, 50)
+
+# Filter bands with FOB members
+fob_bands <- df %>% 
+  filter(value %in% c("Wentz, Pete", "Hurley, Andy", "Trohman, Joe", "Stump, Patrick")) %>% 
+  select(name)
+
+# Get bands of people who were in bands with fob members & include in data
+temp <- df %>% 
+   filter(name %in% fob_bands$name) %>% 
+   select(value)
+
+df <- df %>%
+  filter(value %in% temp$value)
+
+#df <- df[1:50,]
+
+# create a "tbl_graph" object
+network <- df %>%
+  as_tbl_graph()
+
+# centrality measures, for example degree
+# network %>%
+#   activate(nodes) %>% # change context
+#   mutate(degree = centrality_degree()) %>% 
+#   as_tibble() %>%
+#   arrange(desc(degree))
+
+vis_network <- network %>%
+  mutate(group = if_else(condition = name %in% unique(df$value), 
+                         true = "Member", 
+                         false = "Band")) %>%
+  toVisNetworkData()
+
+# Add info for tooltip
+#https://fobarchive.com/archive/504-plan/
+#https://fobarchive.com/archive/firstborn
+#https://fobarchive.com/archive/knockout
+#https://fobarchive.com/archive/patterson
+#https://fobarchive.com/archive/public-display-of-infection/
+#  <a href="https://fobarchive.com/directory/band-directory/">Link Text</a>
+#test <- copy(vis_network$nodes)
+vis_network$nodes <- vis_network$nodes %>% 
+  mutate(title = if_else(condition = id %in% "The.Audreys", 
+                         true = paste0("<p> For more info, visit: <br> fobarchive.com/archive/the-audreys </p>"),
+                         false=NA))
+vis_network$nodes <- vis_network$nodes %>% 
+  mutate(title = if_else(condition = id %in% "Patterson", 
+                         true = paste0("<p> For more info, visit: <br> fobarchive.com/archive/patterson </p>"),
+                         false=title))
+vis_network$nodes <- vis_network$nodes %>% 
+  mutate(title = if_else(condition = id %in% "Public.Display.of.Infection", 
+                         true = paste0("<p> For more info, visit: <br> fobarchive.com/archive/public-display-of-infection </p>"),
+                         false=title))
+vis_network$nodes <- vis_network$nodes %>% 
+  mutate(title = if_else(condition = id %in% "Firstborn...Justice.Coming", 
+                         true = paste0("<p> For more info, visit: <br> fobarchive.com/archive/firstborn </p>"),
+                         false=title))
+vis_network$nodes <- vis_network$nodes %>% 
+  mutate(title = if_else(condition = is.na(title),
+                         true = paste0("<p> See table with more info: <br> fobarchive.com/directory/band-directory </p>"),
+                         false=title))
+vis_network$nodes <- vis_network$nodes %>% 
+  mutate(title = if_else(group %in% "Member",
+                         true = NA,
+                         false=title))
+```
+
+Includes bands that the members of Fall Out Boy were once in and the bands of their previous bandmates (but not the complete membership of those bands). For example, because Tim McIlrath was in Arma Angelus, he appears here as well as the names of his other bands, like Rise Against. But the names of his bandmates in Rise Against who were not in any bands with Pete, Patrick, Andy, or Joe do not appear here. This is necessary for now to reduce the number of inputs to the network graph.
+
+Visit <a href="https://fobarchive.com/directory/band-directory/">https://fobarchive.com/directory/band-directory/</a> for more information on these bands. Only a handful have fully-fleshed out archive pages, but the table has a description for all bands' connections to Fall Out Boy and info on how to find FOBAT's research/archive materials on that page table (see second and third tabs of table for bands for which archive pages are still being made).
+
+```{r plot, echo=FALSE}
+# interactive network
+visNetwork(nodes = vis_network$nodes, edges = vis_network$edges, 
+           width = "100%", height = "1000px") %>%
+  visLayout(randomSeed = 100) %>%
+  # addFontAwesome() %>%
+  visGroups(groupname = "Band", shape = "box", color = list(background ="lightblue", border = "darkblue")) %>%
+  visGroups(groupname = "Member", shape = "ellipse", color = list(background="lightgreen", border = "darkgreen")) %>%
+  #           icon = list(code = "f236", color = "darkblue", size = 5)) %>%
+  # visGroups(groupname = "Member", shape = "icon",
+  #           icon = list(code = "f007", color = "red", size = 5)) %>%
+  visOptions(highlightNearest = list(enabled = TRUE, hover = TRUE, degree=2), 
+             nodesIdSelection = TRUE, selectedBy = "group") %>%
+  visInteraction(navigationButtons = TRUE, tooltipDelay = 0, tooltipStay = 1000) %>% 
+ # visPhysics(barnesHut = list(avoidOverlap=0.5) ) %>% 
+  visLegend(main= paste0("<br> When node is selected, first and second degree connections are highlighted"))
+```
