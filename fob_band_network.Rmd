@@ -9,8 +9,7 @@ date: "2026-04-17"
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 # title: Network analysis of Fall Out Boy members and their previous bands
-# inspired by Network analysis of The Marvel Cinematic universe by Felix Analytix : https://github.com/FelixAnalytix/YouTube/blob/main/20221108-interactive-network.R
-# and https://datastorm-open.github.io/visNetwork/ 
+# using https://datastorm-open.github.io/visNetwork/ & inspired by Network analysis of The Marvel Cinematic universe by Felix Analytix : https://github.com/FelixAnalytix/YouTube/blob/main/20221108-interactive-network.R
 
 library(data.table)
 library(tidyverse)
